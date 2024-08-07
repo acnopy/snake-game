@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Snake Game</title>
+        <link href = "styles/style.css" rel = "stylesheet"/>
+    </head>
+    <body>
+        <div id="header">
+            <h1>Snake Game</h1>
+            <h4>By Bern</h4>
+        </div>
+
+        <div id="end">
+            You died! Do you want to try again?
+            <br>
+            <br>
+            <button class="button-5" onclick="restartGame()">Play Again</button>
+        </div>
+
+        <div id="score">0</div>
+
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+    </body>
+    <style>
+        .button-5 {
+        align-items: center;
+        background-clip: padding-box;
+        background-color: #fa6400;
+        border: 1px solid transparent;
+        border-radius: .25rem;
+        box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+        box-sizing: border-box;
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        justify-content: center;
+        line-height: 1.25;
+        margin: 0;
+        min-height: 3rem;
+        padding: calc(.875rem - 1px) calc(1.5rem - 1px);
+        position: relative;
+        text-decoration: none;
+        transition: all 250ms;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        vertical-align: baseline;
+        width: auto;
+        }
+
+        .button-5:hover,
+        .button-5:focus {
+        background-color: #fb8332;
+        box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+        }
+
+        .button-5:hover {
+        transform: translateY(-1px);
+        }
+
+        .button-5:active {
+        background-color: #c85000;
+        box-shadow: rgba(0, 0, 0, .06) 0 2px 4px;
+        transform: translateY(0);
+        }
+        #gameCanvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #header {
+            text-align: center;
+            font-family: "Trebuchet MS", Helvetica, sans-serif;
+            font-size: 31px;
+            letter-spacing: 1px;
+            word-spacing: 2px;
+            color: #000000;
+            font-weight: 700;
+            text-decoration: none;
+            font-style: normal;
+            font-variant: normal;
+            text-transform: none;
+        }
+        #end {
+            position: absolute;
+            right: 0px;
+            left: 0px;
+            bottom: 200px;
+
+            text-align: center;
+            font-size: 50;
+            font-family: "Trebuchet MS", Helvetica, sans-serif;
+            font-weight: bold;
+        }
+        #score {
+            text-align: center;
+            font-size: 70px;
+            font-family: "Trebuchet MS", Helvetica, sans-serif;
+        }
+    </style>
+    <script>
+        const GAME_SPEED = 120;
+        const CANVAS_COLOUR = 'white';
+        const CANVAS_BORDER_COLOUR = 'black';
+        const SNAKE_COLOR = 'lightgreen';
+        const SNAKE_BORDER_COLOUR = 'darkgreen';
+        const FOOD_COLOUR = 'red';
+        const FOOD_BORDER_COLOUR = 'darkred';
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let snake;
+        let changingDirection;
+        let score;
+        let foodX;
+        let foodY;
+        let dx;
+        let dy;
+
+        document.addEventListener("keydown", changeDirection);
+        document.getElementById("end").style.display = "none";
+
+        function main() {
+            if (didGameEnd()) {
+                document.getElementById("end").style.display = "inline";
+                return;
+            }
+
+            setTimeout(function onTick() {
+                changingDirection = false;
+                clearCanvas();
+                drawFood();
+                advanceSnake();
+                drawSnake();
+
+                main();
+            }, GAME_SPEED);
+        }
+
+        function initializeGame() {
+            snake = [
+                {x: 150, y: 150},
+                {x: 140, y: 150},
+                {x: 130, y: 150},
+                {x: 120, y: 150},
+                {x: 110, y: 150},
+            ];
+            changingDirection = false;
+            score = 0;
+            document.getElementById('score').innerHTML = score;
+            dx = 10;
+            dy = 0;
+            document.getElementById("end").style.display = "none";
+            createFood();
+        }
+
+        function startGame() {
+            initializeGame();
+            main();
+        }
+
+        function restartGame() {
+            initializeGame();
+            main();
+        }
+
+        function didGameEnd() {
+            for (let i = 4; i < snake.length; i++) {
+                const didCollide = snake[i].x === snake[0].x && snake[i].y === snake[0].y;
+                if (didCollide) return true;
+            }
+
+            const hitLeftWall = snake[0].x < 0;
+            const hitRightWall = snake[0].x >= canvas.width;
+            const hitTopWall = snake[0].y < 0;
+            const hitBottomWall = snake[0].y >= canvas.height;
+
+            return hitLeftWall || hitRightWall || hitTopWall || hitBottomWall;
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = CANVAS_COLOUR;
+            ctx.strokeStyle = CANVAS_BORDER_COLOUR;
+
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawFood() {
+            ctx.fillStyle = FOOD_COLOUR;
+            ctx.strokeStyle = FOOD_BORDER_COLOUR;
+
+            ctx.fillRect(foodX, foodY, 10, 10);
+            ctx.strokeRect(foodX, foodY, 10, 10);
+        }
+
+        function advanceSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            const didEatFood = snake[0].x === foodX && snake[0].y === foodY;
+            if (didEatFood) {
+                score += 10;
+                document.getElementById('score').innerHTML = score;
+                createFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach(drawSnakePart);
+        }
+
+        function drawSnakePart(snakePart) {
+            ctx.fillStyle = SNAKE_COLOR;
+            ctx.strokeStyle = SNAKE_BORDER_COLOUR;
+            ctx.fillRect(snakePart.x, snakePart.y, 10, 10);
+            ctx.strokeRect(snakePart.x, snakePart.y, 10, 10);
+        }
+
+        function createFood() {
+            foodX = randomTen(0, canvas.width - 10);
+            foodY = randomTen(0, canvas.height - 10);
+
+            snake.forEach(function isFoodOnSnake(part) {
+                const foodIsOnSnake = part.x == foodX && part.y == foodY;
+                if (foodIsOnSnake) createFood();
+            });
+        }
+
+        function changeDirection(event) {
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+
+            if (changingDirection) return;
+            changingDirection = true;
+
+            const keyPressed = event.keyCode;
+            const goingUp = dy === -10;
+            const goingDown = dy === 10;
+            const goingRight = dx === 10;
+            const goingLeft = dx === -10;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -10;
+                dy = 0;
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -10;
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = 10;
+                dy = 0;
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = 10;
+            }
+        }
+
+        function randomTen(min, max) {
+            return Math.round((Math.random() * (max - min) + min) / 10) * 10;
+        }
+
+        startGame();
+    </script>
+</html>
